@@ -1,5 +1,5 @@
 " File: FindEverything.vim
-" Author: szwchao (szwchao@gmail.com)
+" Ogirinal Author: szwchao (szwchao@gmail.com)
 " Description: Everything is a great search engine in windows.
 "              It can locates files and folders by filename instantly.
 "              This script provide a interface with everything command-line
@@ -7,11 +7,9 @@
 " Usage: 1. Download Everything gui and command-line(es.exe) tools
 "           from the website: http://www.voidtools.com
 "        2. Start everything.exe and keep it running on background.
-"        3. Define g:fe_es_exe in your vimrc file.
-"             e.g. let g:fe_es_exe = 'd:\Everything\es.exe'
 "        4. Open vim and run command ":FE"
-" Version: 1.0
-" Last Modified: March 13, 2011
+" Version: 1.1
+" Last Modified: 2018 07 16
 
 " Prevent reloading{{{
 if exists('g:find_everything')
@@ -23,21 +21,6 @@ let g:find_everything = 1
 " Only working in windows {{{
 if (!has("win32") && !has("win95") && !has("win64") && !has("win16"))
    finish
-endif
-"}}}
-
-" Global Variables {{{
-" Define which file type should be opened with vim when press enter.
-if !exists('g:fe_openfile_filter')
-   let g:fe_openfile_filter = ['txt', 'vim']
-endif
-" Define es.exe option.
-if !exists('g:fe_es_option')
-   let g:fe_es_option = '-s'
-endif
-" Define only show these file types when everything return results.
-if !exists('g:filter_result_ext')
-   let g:filter_result_ext = {'vim':1, 'txt':1, 'c':1, 'h':1, 'py':1}
 endif
 "}}}
 
@@ -55,27 +38,17 @@ fun! s:Handle_String(string)
    return l:str
 endfun
 
-fun! FindEverything()
-   if !exists('g:fe_es_exe')
-      echo "Define g:fe_es_exe firstly!"
+fun! FindEverything(search_pattern)
+   let cmd = "es"
+
+   if !len(a:search_pattern)
       return
    endif
-   if !executable(g:fe_es_exe)
-      echo g:fe_es_exe . " is not a executable program!"
-      return
-   endif
-   let cmd = s:Handle_String(g:fe_es_exe)
+   let pattern = s:Handle_String(a:search_pattern)
 
-   let pattern = input("Find: ")
-   if !len(pattern)
-      return
-   endif
-   let pattern = s:Handle_String(pattern)
+   let dir = getcwd()
 
-   let dir = input("Find in dir: ", "", "dir")
-   let dir = s:Handle_String(dir)
-
-   let cmd = cmd .' '. g:fe_es_option . ' ' . dir . ' ' . pattern
+   let cmd = cmd .' -path ' . dir . ' ' . pattern
 
    let l:result=system(cmd)
 
@@ -88,25 +61,8 @@ fun! FindEverything()
       return
    endif
 
-   " Filter the results. But it will be very slow if there are huge number of results.
-   "let l:result = s:Filter_Everything_Result(l:result)
-
    " Show results
    call s:Show_Everything_Result(l:result)
-endfun
-"}}}
-
-" Filter_Everything_Result {{{
-fun! s:Filter_Everything_Result(result)
-   let filter_ext = g:filter_result_ext
-   let l:filter_result = ""
-   for filename in split(a:result, '\n')
-      let file_ext = fnamemodify(filename, ":e")
-      if has_key(filter_ext, file_ext)
-         let l:filter_result = l:filter_result . filename . "\n"
-      endif
-   endfor
-   return l:filter_result
 endfun
 "}}}
 
@@ -189,20 +145,12 @@ endfun
 "Map_Keys {{{
 fun! s:Map_Keys()
    nnoremap <buffer> <silent> <CR>
-            \ :call <SID>Open_Everything_File('filter')<CR>
+            \ :call <SID>Open_Everything_File()<CR>
    nnoremap <buffer> <silent> <2-LeftMouse>
-            \ :call <SID>Open_Everything_File('external')<CR>
+            \ :call <SID>Open_Everything_File()<CR>
    nnoremap <buffer> <silent> <C-CR>
-            \ :call <SID>Open_Everything_File('internal')<CR>
+            \ :call <SID>Open_Everything_File()<CR>
    nnoremap <buffer> <silent> <ESC> :close<CR>
-endfun
-"}}}
-
-"Open_External {{{
-fun! s:Open_External(fname)
-   let cmd = substitute(a:fname,'/',"\\",'g')
-   let cmd = " start \"\" \"" . cmd . "\""
-   call system(cmd)
 endfun
 "}}}
 
@@ -228,38 +176,18 @@ fun! s:Open_Internal(fname)
 endfun
 "}}}
 
-" Open_Filter {{{
-fun! s:Open_Filter(fname)
-   let l:filter = g:fe_openfile_filter
-   let current_ext = fnamemodify(a:fname, ":e")
-   for ext in l:filter
-      if ext == current_ext
-         call s:Open_Internal(a:fname)
-         return
-      endif
-   endfor
-   call s:Open_External(a:fname)
-endfun
-"}}}
-
 " Open_Everything_File {{{
-fun! s:Open_Everything_File(mode)
+fun! s:Open_Everything_File()
    let fname = getline('.')
    if fname == ''
       return
    endif
 
-   if a:mode == 'external'
-      call s:Open_External(fname)
-   elseif a:mode == 'internal'
-      call s:Open_Internal(fname)
-   elseif a:mode == 'filter'
-      call s:Open_Filter(fname)
-   endif
+  call s:Open_Internal(fname)
 endfun
 "}}}
 
-command! -nargs=* FE call FindEverything()
+command! -nargs=1 FE call FindEverything(<f-args>)
 command! -nargs=* FER call ToggleFEResultWindow()
 
 " vim:fdm=marker:fmr={{{,}}}
